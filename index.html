@@ -100,7 +100,15 @@
                   else digits = 4;              
 
                   let numStr = "";
-                  for(let d = 0; d < digits; d++) numStr += Math.floor(Math.random() * 10);
+                  for(let d = 0; d < digits; d++) {
+                      if (d === 0) {
+                          // Chữ số đầu tiên luôn từ 1-9 (Ngăn chặn lỗi số 0 ở đầu như 08, 06)
+                          numStr += Math.floor(Math.random() * 9) + 1; 
+                      } else {
+                          // Các chữ số phía sau được phép chạy từ 0-9
+                          numStr += Math.floor(Math.random() * 10); 
+                      }
+                  }
                   items.push({ answer: numStr, spoken: numStr, type: `${digits} Digits` });
                }
             }
@@ -128,11 +136,13 @@
             if (questionMode === 'infinite') { count = 50; setIsInfinite(true); } 
             else setIsInfinite(false);
 
+            // Dọn dẹp state rác trước khi bắt đầu
             setCurrentIndex(0);
             setUserInput('');
             setIsCorrect(false);
             setIsErrorFlash(false);
             setIsAnswerRevealed(false);
+            setShowStopModal(false);
 
             const initialData = generateRapidItems(count, rapidCategory);
             setQuestions(initialData);
@@ -198,6 +208,12 @@
           const stopGame = () => {
             setShowStopModal(true);
             window.speechSynthesis.cancel();
+          };
+
+          const confirmStop = () => {
+             setShowStopModal(false);
+             setAppState('setup'); // Về thẳng màn hình home
+             window.speechSynthesis.cancel();
           };
 
           // Khóa Focus để giữ bàn phím ảo luôn bật trên Mobile
@@ -295,15 +311,24 @@
 
                     {/* Ô NHẬP LIỆU (Tối ưu Mobile) */}
                     <div className="w-full relative">
+                      
+                      {/* Lớp mặt nạ Placeholder căn giữa tuyệt đối */}
+                      {!userInput && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <span className="text-xl font-medium text-slate-400">Nhập...</span>
+                        </div>
+                      )}
+
                       <input
                         ref={inputRef} type="text" value={userInput}
-                        onChange={(e) => setUserInput(e.target.value)} 
+                        onChange={(e) => {
+                            if (isCorrect || isErrorFlash) return; // Khóa logic thay vì dùng disabled để giữ bàn phím
+                            setUserInput(e.target.value);
+                        }} 
                         onBlur={handleBlur} /* Chìa khóa giữ bàn phím */
                         inputMode={rapidCategory === 'numbers' ? 'numeric' : 'text'} /* Tự đổi bàn phím số/chữ */
                         autoComplete="off" autoCorrect="off" spellCheck="false" autoCapitalize="characters"
-                        disabled={isCorrect} 
-                        placeholder="Nhập..."
-                        className={`w-full text-center text-4xl sm:text-5xl font-extrabold p-6 rounded-2xl outline-none transition-all tracking-widest placeholder:text-xl placeholder:font-medium placeholder:tracking-normal ${
+                        className={`w-full text-center text-4xl sm:text-5xl font-extrabold p-6 rounded-2xl outline-none transition-all tracking-widest ${
                           isCorrect ? 'bg-emerald-50 text-emerald-600 border-2 border-emerald-400' 
                           : isErrorFlash ? 'error-flash border-2'
                           : 'bg-slate-50 text-slate-800 border-2 border-slate-200 focus:bg-white focus:border-amber-500 focus:shadow-[0_0_0_4px_#fef3c7]'
@@ -348,7 +373,7 @@
                           <h3 className="text-xl font-bold text-slate-800 mb-2">Thoát bài tập?</h3>
                           <div className="flex gap-2 mt-6">
                             <button onClick={() => {setShowStopModal(false); setTimeout(() => inputRef.current?.focus(), 100);}} className="flex-1 py-3 rounded-xl font-bold bg-slate-100 text-slate-600">Tiếp tục</button>
-                            <button onClick={() => setAppState('finished')} className="flex-1 py-3 rounded-xl font-bold bg-red-500 text-white">Thoát</button>
+                            <button onClick={confirmStop} className="flex-1 py-3 rounded-xl font-bold bg-red-500 text-white">Thoát</button>
                           </div>
                         </div>
                       </div>
