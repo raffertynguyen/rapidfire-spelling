@@ -2,16 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Chống zoom màn hình trên Mobile khi focus vào thẻ input -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Rapid Fire Spelling</title>
     
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23f59e0b' stroke='%23f59e0b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polygon points='13 2 3 14 12 14 11 22 21 10 12 10 13 2'/></svg>" />
+
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         body { 
             font-family: 'Inter', sans-serif; 
-            /* Ngăn kéo thả làm mới trang trên mobile */
             overscroll-behavior-y: contain; 
         }
         
@@ -32,9 +32,6 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // ==========================================
-        // ICONS
-        // ==========================================
         const Zap = ({ size, className }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>;
         const Play = ({ size, className }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>;
         const CheckCircle2 = ({ size, className }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>;
@@ -43,14 +40,15 @@
         const SkipForward = ({ size, className }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>;
 
         const COLORS = {
-          main: '#f59e0b', // Amber-500
-          light: '#fef3c7' // Amber-50
+          main: '#f59e0b', 
+          light: '#fef3c7' 
         };
 
+        // CẬP NHẬT: Tách label để ép xuống dòng cho phần trong ngoặc
         const RAPID_MODES = [
-          { id: 'letters', label: 'Chữ (A-Z)' },
-          { id: 'numbers', label: 'Số (0-9999)' },
-          { id: 'mixed', label: 'Kết hợp' }
+          { id: 'letters', main: 'Chữ cái', sub: '(A-Z)' },
+          { id: 'numbers', main: 'Số', sub: '(0-9999)' },
+          { id: 'mixed', main: 'Kết hợp', sub: '(Chữ & Số)' }
         ];
 
         function App() {
@@ -71,7 +69,6 @@
           
           const inputRef = useRef(null);
 
-          // Tải danh sách giọng đọc của hệ điều hành
           const [availableVoices, setAvailableVoices] = useState([]);
           useEffect(() => {
               const loadVoices = () => setAvailableVoices(window.speechSynthesis.getVoices());
@@ -81,7 +78,6 @@
               }
           }, []);
 
-          // Thuật toán sinh nội dung
           const generateRapidItems = (count, category) => {
             let items = [];
             const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -102,10 +98,8 @@
                   let numStr = "";
                   for(let d = 0; d < digits; d++) {
                       if (d === 0) {
-                          // Chữ số đầu tiên luôn từ 1-9 (Ngăn chặn lỗi số 0 ở đầu như 08, 06)
                           numStr += Math.floor(Math.random() * 9) + 1; 
                       } else {
-                          // Các chữ số phía sau được phép chạy từ 0-9
                           numStr += Math.floor(Math.random() * 10); 
                       }
                   }
@@ -115,17 +109,24 @@
             return items;
           };
 
+          // CẬP NHẬT: Tự động Random giọng Nam/Nữ/Kiểu giọng tiếng Anh
           const speakText = (text) => {
             window.speechSynthesis.cancel(); 
             const msg = new SpeechSynthesisUtterance(text);
+            
+            // Ưu tiên gom các giọng Anh-Anh hoặc Anh-Mỹ
+            let enVoices = availableVoices.filter(v => v.lang === 'en-GB' || v.lang === 'en_GB');
+            if (enVoices.length === 0) {
+                enVoices = availableVoices.filter(v => v.lang.startsWith('en')); // Fallback mọi giọng tiếng Anh
+            }
+            
+            if (enVoices.length > 0) {
+                // Bốc ngẫu nhiên 1 giọng trong danh sách để tạo độ linh hoạt
+                const randomVoice = enVoices[Math.floor(Math.random() * enVoices.length)];
+                msg.voice = randomVoice;
+            }
+            
             msg.lang = 'en-GB'; 
-            
-            // Ưu tiên giọng Anh-Anh
-            const ukVoice = availableVoices.find(v => v.name.includes('Google UK English')) || 
-                            availableVoices.find(v => v.lang === 'en-GB' || v.lang === 'en_GB') ||
-                            availableVoices.find(v => v.lang.includes('en'));
-            if (ukVoice) msg.voice = ukVoice;
-            
             msg.rate = 1.0; 
             window.speechSynthesis.speak(msg);
           };
@@ -136,7 +137,6 @@
             if (questionMode === 'infinite') { count = 50; setIsInfinite(true); } 
             else setIsInfinite(false);
 
-            // Dọn dẹp state rác trước khi bắt đầu
             setCurrentIndex(0);
             setUserInput('');
             setIsCorrect(false);
@@ -154,7 +154,6 @@
             }, 300);
           };
 
-          // Logic xử lý khi người dùng gõ
           useEffect(() => {
             if (appState !== 'playing' || !questions[currentIndex] || isCorrect) return;
             
@@ -163,16 +162,13 @@
 
             const ans = questions[currentIndex].answer.toLowerCase();
             
-            // Chỉ kiểm tra khi độ dài gõ bằng với độ dài đáp án
             if (currentInput.length === ans.length) {
                if (currentInput === ans) {
                   setIsCorrect(true);
-                  // Chuyển câu siêu tốc
                   setTimeout(() => {
                      handleNext();
                   }, 200); 
                } else {
-                  // Báo lỗi và xóa để gõ lại
                   setIsErrorFlash(true);
                   setTimeout(() => {
                      setUserInput('');
@@ -192,7 +188,6 @@
                  setIsAnswerRevealed(false);
                  speakText(questions[nextIndex].spoken);
                  
-                 // Chế độ vô hạn: Tự động bơm thêm 50 câu nếu sắp hết
                  if (isInfinite && nextIndex >= questions.length - 10) {
                      setQuestions(prev => [...prev, ...generateRapidItems(50, rapidCategory)]);
                  }
@@ -205,21 +200,21 @@
              }
           };
 
+          // CẬP NHẬT: Tự động đóng bàn phím khi ấn Dừng
           const stopGame = () => {
             setShowStopModal(true);
             window.speechSynthesis.cancel();
+            inputRef.current?.blur(); // Tước quyền focus để ẩn bàn phím ảo
           };
 
           const confirmStop = () => {
              setShowStopModal(false);
-             setAppState('setup'); // Về thẳng màn hình home
+             setAppState('setup'); 
              window.speechSynthesis.cancel();
           };
 
-          // Khóa Focus để giữ bàn phím ảo luôn bật trên Mobile
           const handleBlur = (e) => {
               if (appState === 'playing' && !showStopModal) {
-                  // Dùng setTimeout nhỏ để tránh xung đột vòng lặp focus của React
                   setTimeout(() => inputRef.current?.focus(), 10);
               }
           };
@@ -239,12 +234,14 @@
                     <div className="mb-6">
                       <h2 className="text-base font-bold mb-3 text-slate-800">1. Chọn nội dung</h2>
                       <div className="grid grid-cols-3 gap-2">
+                        {/* CẬP NHẬT: Chia nhỏ Tiêu đề và Subtitle xuống dòng */}
                         {RAPID_MODES.map(mod => (
-                          <label key={mod.id} className={`flex flex-col items-center justify-center p-3 rounded-xl cursor-pointer border-2 transition-all font-bold text-xs sm:text-sm text-center ${
+                          <label key={mod.id} className={`flex flex-col items-center justify-center p-3 rounded-xl cursor-pointer border-2 transition-all text-xs sm:text-sm text-center leading-tight ${
                             rapidCategory === mod.id ? 'border-amber-500 bg-amber-50 text-amber-600' : 'border-slate-200 bg-slate-50 text-slate-500'
                           }`}>
                             <input type="radio" className="hidden" checked={rapidCategory === mod.id} onChange={() => setRapidCategory(mod.id)} />
-                            {mod.label}
+                            <span className="font-bold">{mod.main}</span>
+                            <span className="font-medium text-[10px] sm:text-xs opacity-80 mt-0.5">{mod.sub}</span>
                           </label>
                         ))}
                       </div>
@@ -279,7 +276,6 @@
                 {appState === 'playing' && (
                   <div className="p-6 flex flex-col items-center">
                     
-                    {/* Header Controls */}
                     <div className="w-full flex items-center justify-between mb-6">
                       <span className="text-sm font-bold tracking-wider px-3 py-1 rounded-lg text-amber-600 bg-amber-50">
                         Câu {currentIndex + 1} {isInfinite ? '' : `/ ${questions.length}`}
@@ -289,9 +285,7 @@
                       </button>
                     </div>
 
-                    {/* Vùng phát thanh */}
                     <div className="mb-8 relative">
-                       {/* onMouseDown ngăn chặn nút cướp focus của bàn phím */}
                        <button 
                          onMouseDown={(e) => e.preventDefault()} 
                          onClick={() => { speakText(questions[currentIndex].spoken); }} 
@@ -303,16 +297,13 @@
                        </button>
                     </div>
 
-                    {/* Vùng Phản hồi */}
                     <div className="h-6 mb-2 w-full flex justify-center items-center text-sm">
                        {isCorrect && <span className="text-emerald-600 font-bold flex items-center gap-1"><CheckCircle2 size={16}/> Chuẩn!</span>}
                        {isErrorFlash && <span className="text-red-500 font-bold">Sai rồi! Nghe lại...</span>}
                     </div>
 
-                    {/* Ô NHẬP LIỆU (Tối ưu Mobile) */}
                     <div className="w-full relative">
                       
-                      {/* Lớp mặt nạ Placeholder căn giữa tuyệt đối */}
                       {!userInput && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                           <span className="text-xl font-medium text-slate-400">Nhập...</span>
@@ -322,11 +313,11 @@
                       <input
                         ref={inputRef} type="text" value={userInput}
                         onChange={(e) => {
-                            if (isCorrect || isErrorFlash) return; // Khóa logic thay vì dùng disabled để giữ bàn phím
+                            if (isCorrect || isErrorFlash) return; 
                             setUserInput(e.target.value);
                         }} 
-                        onBlur={handleBlur} /* Chìa khóa giữ bàn phím */
-                        inputMode={rapidCategory === 'numbers' ? 'numeric' : 'text'} /* Tự đổi bàn phím số/chữ */
+                        onBlur={handleBlur} 
+                        inputMode={rapidCategory === 'numbers' ? 'numeric' : 'text'} 
                         autoComplete="off" autoCorrect="off" spellCheck="false" autoCapitalize="characters"
                         className={`w-full text-center text-4xl sm:text-5xl font-extrabold p-6 rounded-2xl outline-none transition-all tracking-widest ${
                           isCorrect ? 'bg-emerald-50 text-emerald-600 border-2 border-emerald-400' 
@@ -335,7 +326,6 @@
                         }`}
                       />
 
-                      {/* Hiển thị đáp án */}
                       {isAnswerRevealed && !isCorrect && (
                         <div className="w-full mt-4 text-center bg-white border border-slate-200 shadow-sm p-4 rounded-xl animate-in fade-in duration-200">
                           <span className="text-sm font-medium text-slate-500 mr-2">Đáp án:</span>
@@ -346,7 +336,6 @@
                       )}
                     </div>
 
-                    {/* Control Buttons (Có preventDefault để không làm rớt bàn phím) */}
                     <div className="flex items-center gap-3 mt-6 w-full max-w-sm">
                       <button 
                         onMouseDown={(e) => e.preventDefault()} 
@@ -366,7 +355,6 @@
                       </button>
                     </div>
 
-                    {/* Modal Dừng */}
                     {showStopModal && (
                       <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                         <div className="bg-white rounded-3xl p-6 w-full max-w-xs shadow-2xl text-center">
